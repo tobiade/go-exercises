@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type quizEntry struct {
@@ -13,14 +14,33 @@ type quizEntry struct {
 	answer   string
 }
 
-//Run the quuiz program.
-func Run(filePath string) {
+//Run the quiz program.
+func Run(filePath string, d time.Duration) {
 	quiz, err := getQuiz(filePath)
 	if err != nil {
 		return
 	}
+	c := make(chan int)
+	go runQuiz(quiz, c)
+
+	var correctAnswers int
+	timeHasRunOut := false
+	for {
+		select {
+		case correctAnswers = <-c:
+		case <-time.After(d):
+			timeHasRunOut = true
+			fmt.Println("\nYou ran out of time!")
+		}
+		if correctAnswers == len(quiz) || timeHasRunOut {
+			break
+		}
+	}
+	fmt.Printf("Correct answers: %d, Total number of questions: %d\n", correctAnswers, len(quiz))
+}
+
+func runQuiz(quiz []quizEntry, c chan int) {
 	var correct int
-	var wrong int
 	fmt.Println("Welcome to the most amazing quiz ever!")
 	reader := bufio.NewReader(os.Stdin)
 	for _, entry := range quiz {
@@ -28,11 +48,9 @@ func Run(filePath string) {
 		userAnswer, _ := reader.ReadString('\n')
 		if strings.TrimSpace(userAnswer) == entry.answer {
 			correct++
-		} else {
-			wrong++
 		}
+		c <- correct
 	}
-	fmt.Printf("Correct answers: %d, Wrong answers: %d\n", correct, wrong)
 }
 
 func getQuiz(filePath string) ([]quizEntry, error) {
