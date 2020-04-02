@@ -16,8 +16,10 @@ func main() {
 
 	yamlHandler := yamlHandler(filePath)
 	jsonHandler := jsonHandler()
+	dbHandler := dbHandler()
 	http.HandleFunc("/yaml/", yamlHandler)
 	http.HandleFunc("/json/", jsonHandler)
+	http.HandleFunc("/db/", dbHandler)
 
 	fmt.Println("Starting the server on :8080")
 	http.ListenAndServe(":8080", nil)
@@ -49,4 +51,10 @@ func jsonHandler() http.HandlerFunc {
 	mappings, err := urlshort.GetMappingsFromJSON()
 	check(err)
 	return urlshort.MapHandler(mappings, mux)
+}
+
+func dbHandler() http.HandlerFunc {
+	db, err := urlshort.GetDBConnection()
+	check(err)
+	return urlshort.DBHandler(db, mux)
 }

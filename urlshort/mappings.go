@@ -2,14 +2,61 @@ package urlshort
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 
+	"sync"
+
+	"github.com/boltdb/bolt"
 	"gopkg.in/yaml.v2"
 )
+
+const bucketName = "Paths"
+
+var doOnce sync.Once
+var db *bolt.DB
 
 type pathToURLEntry struct {
 	Path string `yaml:"path" json:"path"`
 	URL  string `yaml:"url" json:"url"`
+}
+
+//GetDBConnection returns a connection bolt DB
+func GetDBConnection() (*bolt.DB, error) {
+	var err error
+	doOnce.Do(func() {
+		err = initializeDB()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func initializeDB() error {
+	var err error
+	db, err = bolt.Open("my.db", 0600, nil)
+	if err != nil {
+		return err
+	}
+	return db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(bytes(bucketName))
+		if err != nil {
+			return fmt.Errorf("could not create bucket: %s", err)
+		}
+
+		if err := b.Put(bytes("/bolt"), bytes("https://github.com/boltdb/bolt")); err != nil {
+			return err
+		}
+		if err := b.Put(bytes("/bbolt"), bytes("https://github.com/etcd-io/bbolt")); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func bytes(s string) []byte {
+	return []byte(s)
 }
 
 //GetMappingsFromJSON will parse JSON and get URL mappings
